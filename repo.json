@@ -1,0 +1,29 @@
+[
+    {
+        "Author": "rail",
+        "Name": "AetherBreakout",
+        "Punchline": "A classic arcade game.",
+        "Description": "A Breakout clone to play during queue times.",
+        "Changelog": "Initial release.",
+        "IsHide": false,
+        "InternalName": "AetherBreakout",
+        "AssemblyVersion": "1.0.0.0",
+        "TestingAssemblyVersion": "1.0.0.0",
+        "IsTestingExclusive": false,
+        "RepoUrl": "https://github.com/rail2025/AetherBreakout",
+        "ApplicableVersion": "any",
+        "Tags": [
+            "game",
+            "arcade",
+            "breakout"
+        ],
+        "DalamudApiLevel": 12,
+        "TestingDalamudApiLevel": 12,
+        "DownloadLinkInstall": "https://github.com/rail2025/AetherBreakout/releases/download/v1.0.0.0/latest.zip",
+        "DownloadLinkUpdate": "https://github.com/rail2025/AetherBreakout/releases/download/v1.0.0.0/latest.zip",
+        "DownloadLinkTesting": "https://github.com/rail2025/AetherBreakout/releases/download/v1.0.0.0/latest.zip",
+        "LoadPriority": 0,
+        "SupportsProfiles": true,
+        "IconUrl": ""
+    }
+]
