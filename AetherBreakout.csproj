@@ -1,15 +1,17 @@
 ﻿<Project Sdk="Dalamud.NET.Sdk/12.0.2">
 	<PropertyGroup>
 		<DalamudPluginName>AetherBreakout</DalamudPluginName>
-		<DalamudPluginVersion>1.0.0.0</DalamudPluginVersion>
+		<DalamudPluginVersion>1.1.0.0</DalamudPluginVersion>
 		<DalamudApiLevel>12</DalamudApiLevel>
 		<DalamudPluginProjectDir>$(ProjectDir)</DalamudPluginProjectDir>
 	</PropertyGroup>
 	<ItemGroup>
 	  <Content Include="AetherBreakout.json" />
 	  <Content Include="repo.json" />
+	  <Content Include="Resources\background.png" />
+	  <EmbeddedResource Include="Resources\ball.png" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Resources\" />
+	  <PackageReference Include="SixLabors.ImageSharp" Version="3.1.10" />
 	</ItemGroup>
 </Project>

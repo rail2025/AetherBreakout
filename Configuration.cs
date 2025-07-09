@@ -9,6 +9,7 @@ namespace AetherBreakout
     {
         public int Version { get; set; } = 0;
         public float BallSpeedMultiplier { get; set; } = 1.0f;
+        public int HighScore { get; set; } = 0;
 
         [NonSerialized]
         private IDalamudPluginInterface? pluginInterface;

@@ -7,6 +7,7 @@ namespace AetherBreakout.Game
         public Vector2 Position;
         public Vector2 Velocity;
         public float Radius;
+        public bool IsJuggernaut = false;
 
         public Ball(Vector2 position, Vector2 velocity, float radius)
         {

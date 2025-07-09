@@ -14,13 +14,17 @@ namespace AetherBreakout
         [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
         [PluginService] private static IClientState ClientState { get; set; } = null!;
         [PluginService] private static IPluginLog Log { get; set; } = null!;
+        [PluginService] private static ITextureProvider TextureProvider { get; set; } = null!;
+
 
         public readonly WindowSystem WindowSystem = new("AetherBreakout");
         public Configuration Configuration { get; init; }
 
         private MainWindow MainWindow { get; init; }
         private ConfigWindow ConfigWindow { get; init; }
+        private AboutWindow AboutWindow { get; init; }
         private GameSession GameSession { get; init; }
+        private TextureManager TextureManager { get; init; }
 
 
         public Plugin()
@@ -28,13 +32,16 @@ namespace AetherBreakout
             this.Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             this.Configuration.Initialize(PluginInterface);
 
+            this.TextureManager = new TextureManager(Log, TextureProvider, PluginInterface);
             this.GameSession = new GameSession(this.Configuration);
 
-            MainWindow = new MainWindow(this, this.GameSession);
+            MainWindow = new MainWindow(this, this.GameSession, this.TextureManager);
             ConfigWindow = new ConfigWindow(this.Configuration, this.GameSession);
+            AboutWindow = new AboutWindow(this);
 
             WindowSystem.AddWindow(MainWindow);
             WindowSystem.AddWindow(ConfigWindow);
+            WindowSystem.AddWindow(AboutWindow);
 
             CommandManager.AddHandler("/abreakout", new CommandInfo(OnCommand)
             {
@@ -55,8 +62,10 @@ namespace AetherBreakout
             CommandManager.RemoveHandler("/abreakout");
             this.WindowSystem.RemoveAllWindows();
 
+            this.TextureManager.Dispose();
             MainWindow.Dispose();
             ConfigWindow.Dispose();
+            AboutWindow.Dispose();
         }
 
         private void OnCommand(string command, string args)
@@ -64,15 +73,9 @@ namespace AetherBreakout
             ToggleMainUI();
         }
 
-        private void ToggleMainUI()
-        {
-            MainWindow.IsOpen = !MainWindow.IsOpen;
-        }
-
-        private void ToggleConfigUI()
-        {
-            ConfigWindow.IsOpen = !ConfigWindow.IsOpen;
-        }
+        private void ToggleMainUI() => MainWindow.IsOpen = !MainWindow.IsOpen;
+        public void ToggleConfigUI() => ConfigWindow.IsOpen = !ConfigWindow.IsOpen;
+        public void ToggleAboutUI() => AboutWindow.IsOpen = !AboutWindow.IsOpen;
 
         private void DrawUI()
         {
