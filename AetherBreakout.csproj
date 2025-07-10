@@ -6,14 +6,12 @@
 		<DalamudPluginProjectDir>$(ProjectDir)</DalamudPluginProjectDir>
 	</PropertyGroup>
 	<ItemGroup>
-	  <Content Include="AetherBreakout.json" />
 	  <EmbeddedResource Include="icon.png" />
 	  <EmbeddedResource Include="Music\bgm1.mp3" />
 	  <EmbeddedResource Include="Music\bgm2.mp3" />
 	  <EmbeddedResource Include="Music\bgm3.mp3" />
 	  <EmbeddedResource Include="Music\bgm4.mp3" />
 	  <EmbeddedResource Include="Music\titlemusic.mp3" />
-	  <Content Include="repo.json" />
 	  <EmbeddedResource Include="Sfx\bounce.wav" />
 	  <EmbeddedResource Include="Sfx\pop.wav" />
 	  <EmbeddedResource Include="Sfx\powerup.wav" />
