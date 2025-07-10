@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Dalamud.NET.Sdk/12.0.2">
 	<PropertyGroup>
 		<DalamudPluginName>AetherBreakout</DalamudPluginName>
-		<DalamudPluginVersion>1.2.0.0</DalamudPluginVersion>
+		<Version>1.2.0.0</Version>
 		<DalamudApiLevel>12</DalamudApiLevel>
 		<DalamudPluginProjectDir>$(ProjectDir)</DalamudPluginProjectDir>
 	</PropertyGroup>
