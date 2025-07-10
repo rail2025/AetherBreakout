@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using AetherBreakout.Audio;
 
 namespace AetherBreakout.Game
 {
@@ -20,11 +21,15 @@ namespace AetherBreakout.Game
         public List<PowerUp> ActivePowerUps { get; private set; } = new();
 
         private readonly Configuration configuration;
+        private readonly AudioManager audioManager;
+        private readonly Random random = new Random();
 
         private PowerUpType? activeBallPowerUpType = null;
         private PowerUpType? activePaddlePowerUpType = null;
 
         private float originalPaddleWidth;
+        private Vector2 previousPaddlePosition;
+        private const float OriginalBallRadius = 2.5f;
 
         private int bricksDestroyedThisStage = 0;
         private int? powerUpSpawnTarget1 = null;
@@ -32,10 +37,12 @@ namespace AetherBreakout.Game
         private bool powerUp1Spawned = false;
         private bool powerUp2Spawned = false;
 
-        public GameSession(Configuration config)
+        public GameSession(Configuration config, AudioManager audioManager)
         {
             this.configuration = config;
-            this.BallSpeedMultiplier = config.BallSpeedMultiplier;
+            this.audioManager = audioManager;
+            this.BallSpeedMultiplier = config.BallSpeedMultiplier <= 0.0f ? 1.0f : config.BallSpeedMultiplier;
+            this.configuration.BallSpeedMultiplier = this.BallSpeedMultiplier;
             CurrentGameState = GameState.MainMenu;
         }
 
@@ -44,38 +51,38 @@ namespace AetherBreakout.Game
             Score = 0;
             Lives = 3;
             Level = 1;
-            this.BallSpeedMultiplier = 1.0f;
+            this.BallSpeedMultiplier = this.configuration.BallSpeedMultiplier;
 
             var paddleSize = new Vector2(25, 4);
             var paddlePosition = new Vector2((GameBoardSize.X - paddleSize.X) / 2, GameBoardSize.Y - paddleSize.Y - 10);
             ThePaddle = new Paddle(paddlePosition, paddleSize);
-            this.originalPaddleWidth = ThePaddle.Size.X; // Store original width
+            this.originalPaddleWidth = ThePaddle.Size.X;
+            this.previousPaddlePosition = ThePaddle.Position;
 
             TheGameBoard = new GameBoard();
 
             StartLevel();
+            this.audioManager.PlayMusic("bgm1.mp3", false);
             CurrentGameState = GameState.InGame;
         }
 
         private void StartLevel()
         {
+            DeactivateAllPowerUps();
             TheGameBoard?.CreateLevel(Level);
             bricksDestroyedThisStage = 0;
             powerUp1Spawned = false;
             powerUp2Spawned = false;
             SetPowerUpSpawnTargets();
             ResetBall();
-            DeactivateAllPowerUps();
         }
 
         private void SetPowerUpSpawnTargets()
         {
-            var random = new Random();
-            powerUpSpawnTarget1 = random.Next(3, 11); // First spawn between 3rd and 10th brick
-
+            powerUpSpawnTarget1 = random.Next(3, 11);
             if (Level >= 5)
             {
-                powerUpSpawnTarget2 = random.Next(25, 36); // Second spawn between 25th and 35th
+                powerUpSpawnTarget2 = random.Next(25, 36);
             }
             else
             {
@@ -83,45 +90,44 @@ namespace AetherBreakout.Game
             }
         }
 
-
         private void ResetBall()
         {
             if (ThePaddle == null) return;
             Balls.Clear();
-            float ballRadius = 2.5f;
             var ballPosition = new Vector2(
-                ThePaddle.Position.X + ThePaddle.Size.X / 2 - ballRadius,
-                ThePaddle.Position.Y - ballRadius * 2 - 1
+                ThePaddle.Position.X + ThePaddle.Size.X / 2 - OriginalBallRadius,
+                ThePaddle.Position.Y - OriginalBallRadius * 2 - 1
             );
             var ballVelocity = new Vector2(50, -50) * BallSpeedMultiplier;
-            Balls.Add(new Ball(ballPosition, ballVelocity, ballRadius));
+            Balls.Add(new Ball(ballPosition, ballVelocity, OriginalBallRadius));
         }
 
         public void Update(float deltaTime)
         {
             if (CurrentGameState != GameState.InGame || ThePaddle == null || TheGameBoard == null) return;
 
+            // Calculate paddle velocity for the frame
+            if (deltaTime > 0)
+            {
+                ThePaddle.Velocity = (ThePaddle.Position - this.previousPaddlePosition) / deltaTime;
+                this.previousPaddlePosition = ThePaddle.Position;
+            }
+
             foreach (var ball in Balls.ToList())
             {
                 ball.Position += ball.Velocity * deltaTime;
 
-                // Wall Collision
-                if (ball.Position.X <= 0) { ball.Velocity.X *= -1; ball.Position.X = 0; }
-                if (ball.Position.X + ball.Radius * 2 >= GameBoardSize.X) { ball.Velocity.X *= -1; ball.Position.X = GameBoardSize.X - ball.Radius * 2; }
-                if (ball.Position.Y <= 0) { ball.Velocity.Y *= -1; ball.Position.Y = 0; }
+                if (ball.Position.X <= 0) { ball.Velocity.X *= -1; ball.Position.X = 0; audioManager.PlaySfx("bounce.wav"); }
+                if (ball.Position.X + ball.Radius * 2 >= GameBoardSize.X) { ball.Velocity.X *= -1; ball.Position.X = GameBoardSize.X - ball.Radius * 2; audioManager.PlaySfx("bounce.wav"); }
+                if (ball.Position.Y <= 0) { ball.Velocity.Y *= -1; ball.Position.Y = 0; audioManager.PlaySfx("bounce.wav"); }
 
-                // Bottom Wall (lose life)
                 if (ball.Position.Y + ball.Radius * 2 >= GameBoardSize.Y)
                 {
                     Balls.Remove(ball);
                     if (!Balls.Any())
                     {
                         Lives--;
-                        if (Lives > 0)
-                        {
-                            ResetBall();
-                        }
-                        else
+                        if (Lives <= 0)
                         {
                             if (this.Score > this.configuration.HighScore)
                             {
@@ -129,21 +135,49 @@ namespace AetherBreakout.Game
                                 this.configuration.Save();
                             }
                             CurrentGameState = GameState.GameOver;
+                            audioManager.FadeMusic(0f, 1.5f, () => audioManager.StopMusic());
+                        }
+                        else
+                        {
+                            DeactivateAllPowerUps();
+                            ResetBall();
                         }
                     }
                     continue;
                 }
 
-                // Paddle Collision
                 var ballRect = new RectangleF(ball.Position, new Vector2(ball.Radius * 2, ball.Radius * 2));
                 var paddleRect = new RectangleF(ThePaddle.Position, ThePaddle.Size);
+
+                // --- Enhanced Paddle Collision Logic ---
                 if (ballRect.IntersectsWith(paddleRect))
                 {
+                    // Prevent ball from getting stuck inside the paddle
                     ball.Position.Y = ThePaddle.Position.Y - (ball.Radius * 2);
-                    ball.Velocity.Y *= -1;
+
+                    // Always bounce upwards
+                    ball.Velocity.Y = -Math.Abs(ball.Velocity.Y);
+
+                    // Calculate where the ball hit the paddle (-1 for left edge, 1 for right edge)
+                    var paddleCenter = ThePaddle.Position.X + ThePaddle.Size.X / 2;
+                    var ballImpactX = ball.Position.X + ball.Radius;
+                    var offset = ballImpactX - paddleCenter;
+                    var normalizedOffset = offset / (ThePaddle.Size.X / 2);
+
+                    // Add velocity based on impact position
+                    float positionInfluence = 50f;
+                    ball.Velocity.X += normalizedOffset * positionInfluence;
+
+                    // Add velocity from the paddle's own movement
+                    float paddleInfluence = 0.4f;
+                    ball.Velocity.X += ThePaddle.Velocity.X * paddleInfluence;
+
+                    // Clamp the horizontal velocity to prevent extreme angles
+                    ball.Velocity.X = Math.Clamp(ball.Velocity.X, -80f, 80f);
+
+                    audioManager.PlaySfx("bounce.wav");
                 }
 
-                // Brick Collision
                 foreach (var brick in TheGameBoard.Bricks.Where(b => b.IsActive))
                 {
                     var brickRect = new RectangleF(brick.Position, brick.Size);
@@ -155,34 +189,35 @@ namespace AetherBreakout.Game
                         }
                         brick.IsActive = false;
                         Score += 10;
+                        audioManager.PlaySfx("pop.wav");
                         bricksDestroyedThisStage++;
                         CheckForPowerUpSpawn(brick.Position);
                         break;
                     }
                 }
             }
-            // Update and check for power-up collection
+
             foreach (var powerUp in ActivePowerUps.ToList())
             {
-                powerUp.Position.Y += 50 * deltaTime;
+                powerUp.Position.Y += 25 * deltaTime;
                 var powerUpRect = new RectangleF(powerUp.Position, powerUp.Size);
-                var paddleRect = new RectangleF(ThePaddle.Position, ThePaddle.Size);
-
-                if (powerUpRect.IntersectsWith(paddleRect))
+                if (ThePaddle != null)
                 {
-                    ActivatePowerUp(powerUp);
-                    ActivePowerUps.Remove(powerUp);
-                }
-                else if (powerUp.Position.Y > GameBoardSize.Y)
-                {
-                    ActivePowerUps.Remove(powerUp);
+                    var paddleRect = new RectangleF(ThePaddle.Position, ThePaddle.Size);
+                    if (powerUpRect.IntersectsWith(paddleRect))
+                    {
+                        ActivatePowerUp(powerUp);
+                        ActivePowerUps.Remove(powerUp);
+                        audioManager.PlaySfx("powerup.wav");
+                    }
+                    else if (powerUp.Position.Y > GameBoardSize.Y)
+                    {
+                        ActivePowerUps.Remove(powerUp);
+                    }
                 }
             }
 
-            TheGameBoard.Bricks.RemoveAll(b => !b.IsActive);
-
-            // Stage Clear Condition
-            if (!TheGameBoard.Bricks.Any())
+            if (TheGameBoard != null && !TheGameBoard.Bricks.Any(b => b.IsActive))
             {
                 Level++;
                 this.BallSpeedMultiplier *= 1.01f;
@@ -204,46 +239,41 @@ namespace AetherBreakout.Game
             }
         }
 
-
         private void TrySpawnPowerUp(Vector2 position)
         {
-            var random = new Random();
             var powerUpType = (PowerUpType)random.Next(Enum.GetValues(typeof(PowerUpType)).Length);
             ActivePowerUps.Add(new PowerUp(position, powerUpType));
         }
 
         private void ActivatePowerUp(PowerUp powerUp)
         {
-            switch (powerUp.Type)
+            if (powerUp.Type == PowerUpType.WidenPaddle)
             {
-                case PowerUpType.WidenPaddle:
-                    activePaddlePowerUpType = powerUp.Type;
-                    if (ThePaddle != null) ThePaddle.Size.X = this.originalPaddleWidth * 3;
-                    break;
-
-                case PowerUpType.SplitBall:
-                case PowerUpType.BigBall:
-                case PowerUpType.Juggernaut:
-                    DeactivateBallPowerUp();
-                    activeBallPowerUpType = powerUp.Type;
-                    switch (powerUp.Type)
-                    {
-                        case PowerUpType.SplitBall:
-                            if (Balls.Any())
-                            {
-                                var originalBall = Balls.First();
-                                Balls.Add(new Ball(originalBall.Position, new Vector2(originalBall.Velocity.X, originalBall.Velocity.Y), originalBall.Radius));
-                                Balls.Add(new Ball(originalBall.Position, new Vector2(-originalBall.Velocity.X, originalBall.Velocity.Y), originalBall.Radius));
-                            }
-                            break;
-                        case PowerUpType.BigBall:
-                            foreach (var ball in Balls) ball.Radius *= 3;
-                            break;
-                        case PowerUpType.Juggernaut:
-                            foreach (var ball in Balls) ball.IsJuggernaut = true;
-                            break;
-                    }
-                    break;
+                DeactivatePaddlePowerUp();
+                activePaddlePowerUpType = powerUp.Type;
+                if (ThePaddle != null) ThePaddle.Size.X = this.originalPaddleWidth * 3;
+            }
+            else
+            {
+                DeactivateBallPowerUp();
+                activeBallPowerUpType = powerUp.Type;
+                switch (powerUp.Type)
+                {
+                    case PowerUpType.SplitBall:
+                        if (Balls.Any())
+                        {
+                            var originalBall = Balls.First();
+                            Balls.Add(new Ball(originalBall.Position, new Vector2(originalBall.Velocity.X, originalBall.Velocity.Y), originalBall.Radius));
+                            Balls.Add(new Ball(originalBall.Position, new Vector2(-originalBall.Velocity.X, originalBall.Velocity.Y), originalBall.Radius));
+                        }
+                        break;
+                    case PowerUpType.BigBall:
+                        foreach (var ball in Balls) ball.Radius *= 3;
+                        break;
+                    case PowerUpType.Juggernaut:
+                        foreach (var ball in Balls) ball.IsJuggernaut = true;
+                        break;
+                }
             }
         }
 
@@ -268,7 +298,7 @@ namespace AetherBreakout.Game
                     }
                     break;
                 case PowerUpType.BigBall:
-                    foreach (var ball in Balls) ball.Radius /= 3;
+                    foreach (var ball in Balls) ball.Radius = OriginalBallRadius;
                     break;
                 case PowerUpType.Juggernaut:
                     foreach (var ball in Balls) ball.IsJuggernaut = false;
@@ -302,6 +332,7 @@ namespace AetherBreakout.Game
             Balls.Clear();
             TheGameBoard = null;
             DeactivateAllPowerUps();
+            audioManager.StopMusic();
             CurrentGameState = GameState.MainMenu;
         }
 
