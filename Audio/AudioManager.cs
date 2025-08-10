@@ -5,7 +5,7 @@ using NAudio.Wave.SampleProviders;
 using Dalamud.Plugin.Services;
 using System.Reflection;
 using System.Linq;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace AetherBreakout.Audio
 {

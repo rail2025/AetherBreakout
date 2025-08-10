@@ -3,7 +3,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using AetherBreakout.Game;
 using AetherBreakout.UI;
 using AetherBreakout.Audio;
@@ -85,7 +85,7 @@ namespace AetherBreakout.Windows
 
             if (textureManager.BackgroundTexture != null)
             {
-                ImGui.GetWindowDrawList().AddImage(textureManager.BackgroundTexture.ImGuiHandle, windowPos, windowPos + windowSize);
+                ImGui.GetWindowDrawList().AddImage(textureManager.BackgroundTexture.Handle, windowPos, windowPos + windowSize);
             }
 
             var titleText = "AetherBreakout";
@@ -170,13 +170,13 @@ namespace AetherBreakout.Windows
                 var paddleSize = paddle.Size * pixelsPerUnit;
                 drawList.AddRectFilled(paddlePos, paddlePos + paddleSize, ImGui.GetColorU32(new Vector4(1, 1, 1, 1)));
             }
-            if (gameSession.Balls.Any() && textureManager.BallTexture?.ImGuiHandle != null)
+            if (gameSession.Balls.Any() && textureManager.BallTexture?.Handle != null)
             {
                 foreach (var ball in gameSession.Balls)
                 {
                     var ballTopLeft = contentMin + (ball.Position * pixelsPerUnit);
                     var ballSize = new Vector2(ball.Radius * 2, ball.Radius * 2) * pixelsPerUnit;
-                    drawList.AddImage(textureManager.BallTexture.ImGuiHandle, ballTopLeft, ballTopLeft + ballSize);
+                    drawList.AddImage(textureManager.BallTexture.Handle, ballTopLeft, ballTopLeft + ballSize);
                 }
             }
 
@@ -232,7 +232,7 @@ namespace AetherBreakout.Windows
 
             if (textureManager.GameOverTexture != null)
             {
-                ImGui.GetWindowDrawList().AddImage(textureManager.GameOverTexture.ImGuiHandle, windowPos, windowPos + windowSize);
+                ImGui.GetWindowDrawList().AddImage(textureManager.GameOverTexture.Handle, windowPos, windowPos + windowSize);
             }
 
             var gameOverText = "GAME OVER";
