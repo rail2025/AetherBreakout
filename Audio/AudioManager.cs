@@ -51,6 +51,7 @@ namespace AetherBreakout.Audio
         private readonly Configuration configuration;
         private WaveOutEvent? bgmOutputDevice;
         private WaveStream? bgmFileReader;
+        private VolumeSampleProvider? bgmVolumeProvider; // Added for volume control
         private bool isBgmPlaying = false;
         private string? currentTrackName;
 
@@ -144,18 +145,23 @@ namespace AetherBreakout.Audio
                 this.bgmFileReader = new Mp3FileReader(memoryStream);
                 this.bgmOutputDevice = new WaveOutEvent();
 
+                WaveStream streamToPlay = this.bgmFileReader;
                 if (loop)
                 {
-                    var loopStream = new LoopStream(this.bgmFileReader);
-                    this.bgmOutputDevice.Init(loopStream);
+                    streamToPlay = new LoopStream(this.bgmFileReader);
                 }
                 else
                 {
                     this.bgmOutputDevice.PlaybackStopped += OnBgmPlaybackStopped;
-                    this.bgmOutputDevice.Init(this.bgmFileReader);
                 }
 
-                this.bgmOutputDevice.Volume = this.configuration.MusicVolume;
+                // Create and insert the VolumeSampleProvider
+                this.bgmVolumeProvider = new VolumeSampleProvider(streamToPlay.ToSampleProvider())
+                {
+                    Volume = this.configuration.MusicVolume
+                };
+
+                this.bgmOutputDevice.Init(this.bgmVolumeProvider);
 
                 if (!this.configuration.IsBgmMuted)
                 {
@@ -170,13 +176,13 @@ namespace AetherBreakout.Audio
 
         public void FadeMusic(float targetVolume, float duration, Action? onComplete = null)
         {
-            if (bgmOutputDevice == null)
+            if (bgmVolumeProvider == null) // Check volume provider instead of device
             {
                 onComplete?.Invoke();
                 return;
             }
 
-            startVolume = bgmOutputDevice.Volume;
+            startVolume = bgmVolumeProvider.Volume;
             endVolume = Math.Clamp(targetVolume, 0f, 1f);
             fadeDuration = duration;
             fadeStartTime = (float)ImGui.GetTime();
@@ -199,26 +205,26 @@ namespace AetherBreakout.Audio
 
         public void UpdateBgmState()
         {
-            if (bgmOutputDevice == null) return;
+            if (bgmOutputDevice == null || bgmVolumeProvider == null) return;
 
             if (isFading)
             {
                 var elapsedTime = (float)ImGui.GetTime() - fadeStartTime;
                 if (elapsedTime >= fadeDuration)
                 {
-                    bgmOutputDevice.Volume = endVolume;
+                    bgmVolumeProvider.Volume = endVolume;
                     isFading = false;
                     onFadeComplete?.Invoke();
                 }
                 else
                 {
                     float progress = elapsedTime / fadeDuration;
-                    bgmOutputDevice.Volume = startVolume + (endVolume - startVolume) * progress;
+                    bgmVolumeProvider.Volume = startVolume + (endVolume - startVolume) * progress;
                 }
             }
             else
             {
-                bgmOutputDevice.Volume = this.configuration.MusicVolume;
+                bgmVolumeProvider.Volume = this.configuration.MusicVolume;
 
                 if (this.configuration.IsBgmMuted && bgmOutputDevice.PlaybackState == PlaybackState.Playing)
                 {
@@ -233,9 +239,9 @@ namespace AetherBreakout.Audio
 
         public void SetBgmVolume(float volume)
         {
-            if (this.bgmOutputDevice != null)
+            if (this.bgmVolumeProvider != null)
             {
-                this.bgmOutputDevice.Volume = volume;
+                this.bgmVolumeProvider.Volume = volume;
             }
         }
 
@@ -250,6 +256,7 @@ namespace AetherBreakout.Audio
             }
             this.bgmFileReader?.Dispose();
             this.bgmFileReader = null;
+            this.bgmVolumeProvider = null; // Clear the volume provider
         }
 
         public void EndPlaylist()
